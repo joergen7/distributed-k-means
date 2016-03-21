@@ -30,6 +30,8 @@ deftask init_state( state( File ) : data( File ) k ) in python *{
 import numpy as np
 import random
 
+random.seed( 123 )
+
 X = np.load( data )
 k = int( k )
 
