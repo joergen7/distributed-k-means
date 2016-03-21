@@ -1,11 +1,9 @@
-
-
-
-
 deftask gen_data( data( File ) : N k ) in python *{
 
 import numpy as np
 import random
+
+random.seed( 42 )
 
 N = int( N )
 k = int( k )
@@ -93,6 +91,8 @@ else:
 deftask plot( png( File ) : cls( File ) k )in python *{
 
 import numpy as np
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 clusters = np.load( cls ).item()
