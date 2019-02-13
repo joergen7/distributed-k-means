@@ -1,6 +1,6 @@
 #
 # Cookbook:: distributed-k-means
-# Recipe:: default
+# Recipe:: workflow
 #
 # Copyright:: 2016-2019 Jörgen Brandt <joergen@cuneiform-lang.org>
 #
@@ -17,11 +17,11 @@
 # limitations under the License.
 #
 
-# refresh package sources
-bash "apt-get_update" do
-    code "apt-get update"
-end
 
-include_recipe "chef-cuneiform::default"
-include_recipe "distributed-k-means::tools"
-include_recipe "distributed-k-means::workflow"
+# create workflow directory
+directory node["dir"]["wf"]
+
+# place workflow
+template "#{node["dir"]["wf"]}/distributed-k-means.cfl" do
+  source "distributed-k-means.cfl"
+end

@@ -1,6 +1,7 @@
 #
+# Author:: Jörgen Brandt <joergen@cuneiform-lang.org>
 # Cookbook:: distributed-k-means
-# Recipe:: default
+# Attributes:: default
 #
 # Copyright:: 2016-2019 Jörgen Brandt <joergen@cuneiform-lang.org>
 #
@@ -17,11 +18,6 @@
 # limitations under the License.
 #
 
-# refresh package sources
-bash "apt-get_update" do
-    code "apt-get update"
-end
-
-include_recipe "chef-cuneiform::default"
-include_recipe "distributed-k-means::tools"
-include_recipe "distributed-k-means::workflow"
+default["dir"]["wf"] =       "/opt/wf"
+# default["dir"]["archive"] =  "/opt/archive"
+# default["dir"]["software"] = "/opt/software"

@@ -1,6 +1,8 @@
 ---
 driver:
   name: vagrant
+  customize:
+    cpus: 4
 
 provisioner:
   name: chef_zero
@@ -11,11 +13,10 @@ provisioner:
 #   name: inspec
 
 platforms:
-  - name: ubuntu-14.04
-  - name: centos-7.1
+  - name: ubuntu-18.04
 
 suites:
   - name: default
     run_list:
-      - recipe[kmeans::default]
+      - recipe[distributed-k-means::default]
     attributes:

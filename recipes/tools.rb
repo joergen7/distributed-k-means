@@ -1,6 +1,6 @@
 #
 # Cookbook:: distributed-k-means
-# Recipe:: default
+# Recipe:: tools
 #
 # Copyright:: 2016-2019 Jörgen Brandt <joergen@cuneiform-lang.org>
 #
@@ -16,12 +16,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-# refresh package sources
-bash "apt-get_update" do
-    code "apt-get update"
-end
-
-include_recipe "chef-cuneiform::default"
-include_recipe "distributed-k-means::tools"
-include_recipe "distributed-k-means::workflow"
