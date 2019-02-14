@@ -1,13 +1,210 @@
 
+%%==========================================================
+%% Foreign functions
+%%==========================================================
 
-let k-gen : Str = 4;
-let n-gen : Str = 10000;
-let k-est : Str = 4;
-let n-part : Str = 32;
+def gen-random-sample( k : Str, n : Str ) -> <cluster-lst : [File]>
+in Racket *{
 
-def gen-random-sample() -> <split-lst : [File]> in Racket *{
-  (define split-lst
-    '())
+  (require (only-in k-means/gen
+                    gen-random-sample))
+
+  (define cluster-lst
+    (build-list (string->number k)
+                (lambda (i) (number->string i))))
+
+  (define c-lst
+    (gen-random-sample (string->number k)
+                       (string->number n)))
+
+  (define (proc f c)
+    (call-with-output-file f
+      (lambda (out) (write c out))))
+
+  (for-each proc cluster-lst c-lst)
 }*
 
-gen-random-sample();
+def shuffle-split( cluster-lst : [File], n : Str ) -> <split-lst : [File]>
+in Racket *{
+
+  (require (only-in racket/list
+                    shuffle)
+
+           (only-in k-means
+                    split))
+
+  (define (in-proc f)
+    (call-with-input-file f
+      (lambda (in) (read in))))
+
+  (define (out-proc f s)
+    (call-with-output-file f
+      (lambda (out) (write s out))))
+
+  (define s-lst
+    (split
+      (shuffle (apply append (map in-proc cluster-lst)))
+      (string->number n)))
+
+  (define split-lst
+    (build-list (string->number n)
+                (lambda (i) (number->string i))))
+
+  (for-each out-proc split-lst s-lst)
+}*
+
+def init-history( k : Str ) -> <history : File>
+in Racket *{
+
+  (require (only-in k-means/gen
+                    gen-init-cc-lst))
+
+  (define h
+    (list (gen-init-cc-lst (string->number k))))
+
+  (define history
+    "history")
+
+  (call-with-output-file history (lambda (out) (write h out)))
+}*
+
+def reverse-file-lst( lst : [File] ) -> [File] {
+  fold acc : [File] = [: File], x : File <- lst do
+    (x >> acc)
+  end
+}
+
+def last-file( lst : [File], default : File ) -> File {
+  fold acc : File = default, x : File <- lst do
+    x
+  end
+}
+
+def first-file( lst : [File], default : File ) -> File {
+  last-file(
+    lst     = reverse-file-lst( lst = lst ),
+    default = default )
+}
+
+def step( split-lst : [File], history : File ) ->
+  <new-history : File, has-converged : Bool> {
+
+  let pair-lst : [File] =
+    for split : File <- split-lst do
+
+      <cluster-pair = cc-pair : File> =
+        step-split( split   = split,
+                    history = history );
+
+      cc-pair : File
+    end
+
+
+}
+
+def run-k-means( split-lst : [File], history : File ) -> File {
+
+}
+
+%% Plotting ------------------------------------------------
+
+def plot-random-sample( cluster-lst : [File] ) -> <png : File>
+in Racket *{
+
+  (require (only-in k-means/render
+                    render-gen-sample)
+
+           (only-in plot
+                    plot))
+
+  (define (proc f)
+    (call-with-input-file f
+      (lambda (in) (read in))))
+
+  (define png "gen-sample.png")
+
+  (plot (render-gen-sample (map proc cluster-lst))
+        #:x-min      0
+        #:x-max     10
+        #:y-min      0
+        #:y-max     10
+        #:width    450
+        #:height   450
+        #:x-label  #f
+        #:y-label  #f
+        #:out-kind 'png
+        #:out-file png)
+}*
+
+def plot-input-data( split-lst : [File] ) -> <png : File>
+in Racket *{
+
+  (require (only-in k-means/render
+                    render-sample)
+
+           (only-in plot
+                    plot))
+
+  (define (proc f)
+    (call-with-input-file f
+      (lambda (in) (read in))))
+
+  (define png "input-data.png")
+
+  (plot (render-sample (apply append (map proc split-lst)))
+        #:x-min      0
+        #:x-max     10
+        #:y-min      0
+        #:y-max     10
+        #:width    450
+        #:height   450
+        #:x-label  #f
+        #:y-label  #f
+        #:out-kind 'png
+        #:out-file png)
+}*
+
+
+
+
+%%==========================================================
+%% Constants
+%%==========================================================
+
+let k-gen  : Str = 4;
+let n-gen  : Str = 10000;
+let k-est  : Str = 4;
+let n-part : Str = 32;
+
+%%==========================================================
+%% Workflow
+%%==========================================================
+
+let <cluster-lst = cluster-lst : [File]> =
+  gen-random-sample(
+    k = k-gen,
+    n = n-gen );
+
+let <split-lst = split-lst : [File]> =
+  shuffle-split(
+    cluster-lst = cluster-lst,
+    n           = n-part );
+
+let <history = history0 : File> =
+  init-history( k = k-est );
+
+
+
+let <png = random-sample-png : File> =
+  plot-random-sample( cluster-lst = cluster-lst );
+
+let <png = input-data-png : File> =
+  plot-input-data( split-lst = split-lst );
+
+%%==========================================================
+%% Query
+%%==========================================================
+
+<random-sample-png = random-sample-png,
+ input-data-png    = input-data-png,
+ history0          = history0>;
