@@ -1,5 +1,29 @@
 
 %%==========================================================
+%% Utility functions
+%%==========================================================
+
+def reverse-file-lst( lst : [File] ) -> [File] {
+  fold acc : [File] = [: File], x : File <- lst do
+    (x >> acc)
+  end
+}
+
+def last-file( lst : [File], default : File ) -> File {
+  fold acc : File = default, x : File <- lst do
+    x
+  end
+}
+
+def first-file( lst : [File], default : File ) -> File {
+  last-file(
+    lst     = reverse-file-lst( lst = lst ),
+    default = default )
+}
+
+
+
+%%==========================================================
 %% Foreign functions
 %%==========================================================
 
@@ -53,60 +77,147 @@ in Racket *{
   (for-each out-proc split-lst s-lst)
 }*
 
-def init-history( k : Str ) -> <history : File>
+def init-cc-lst( k : Str ) -> <cc-lst : File>
 in Racket *{
 
   (require (only-in k-means/gen
                     gen-init-cc-lst))
 
-  (define h
-    (list (gen-init-cc-lst (string->number k))))
+  (define l
+    (gen-init-cc-lst (string->number k)))
 
-  (define history
-    "history")
+  (define cc-lst
+    "cc-lst")
 
-  (call-with-output-file history (lambda (out) (write h out)))
+  (call-with-output-file cc-lst
+                         (lambda (out) (write l out)))
 }*
 
-def reverse-file-lst( lst : [File] ) -> [File] {
-  fold acc : [File] = [: File], x : File <- lst do
-    (x >> acc)
-  end
-}
+def has-converged( a : File, b : File ) -> <p : Bool>
+in Racket *{
 
-def last-file( lst : [File], default : File ) -> File {
-  fold acc : File = default, x : File <- lst do
-    x
-  end
-}
+  (define (proc in)
+    (read in))
 
-def first-file( lst : [File], default : File ) -> File {
-  last-file(
-    lst     = reverse-file-lst( lst = lst ),
-    default = default )
-}
+  (define cc-lst-a
+    (call-with-input-file a proc))
 
-def step( split-lst : [File], history : File ) ->
-  <new-history : File, has-converged : Bool> {
+  (define cc-lst-b
+    (call-with-input-file b proc))
+
+  (define p
+    (equal? cc-lst-a cc-lst-b))
+}*
+
+def weighted-mean( pair-lst : [File] ) -> <mean-cc-lst : File>
+in Racket *{
+
+  (require (only-in k-means
+                    weighted-mean))
+
+  (define (in-proc f)
+    (call-with-input-file f
+      (lambda (in) (read in))))
+
+  (define cluster-pair-lst
+    (map in-proc pair-lst))
+
+  (displayln cluster-pair-lst)
+
+  (define m
+    (weighted-mean cluster-pair-lst))
+
+  (define mean-cc-lst
+    "mean-cc-lst")
+
+  (call-with-output-file mean-cc-lst
+                         (lambda (out) (write m out)))
+  
+}*
+
+def step-split( split : File, cc-lst : File ) -> <cluster-pair : File>
+in Racket *{
+
+  (require (only-in k-means
+                    partition
+                    cluster-center))
+
+  (define s
+    (call-with-input-file split (lambda (in) (read in))))
+
+  (define c0
+    (call-with-input-file cc-lst (lambda (in) (read in))))
+
+  (define partition-lst
+    (partition s c0))
+
+  (define c1
+    (for/list ([partition partition-lst])
+          (cluster-center partition)))
+
+  (define p
+    (cons c1 (length s)))
+
+  (define cluster-pair
+    "cluster-pair")
+
+  (call-with-output-file cluster-pair (lambda (out) (write p out)))
+
+}*
+
+
+%% k-means algorithm ---------------------------------------
+
+def step( split-lst : [File], cc-lst : File ) -> File {
 
   let pair-lst : [File] =
     for split : File <- split-lst do
 
-      <cluster-pair = cc-pair : File> =
-        step-split( split   = split,
-                    history = history );
+      let <cluster-pair = cluster-pair : File> =
+        step-split( split  = split,
+                    cc-lst = cc-lst );
 
-      cc-pair : File
+      cluster-pair : File
+    end;
+
+  let <mean-cc-lst = new-cc-lst : File> =
+    weighted-mean( pair-lst = pair-lst );
+
+  new-cc-lst
+}
+
+def sub1( x : Str ) -> Str {
+  def sub1( x : Str ) -> <y : Str> in Racket *{
+    (define y (number->string (sub1 (string->number x))))
+  }*
+  ( sub1( x = x )|y )
+}
+
+def run-k-means( split-lst : [File], history : [File] ) -> File {
+
+    let cc-lst : File =
+      first-file( lst     = history,
+                  default = error "history must not be empty" : File );
+
+    let new-cc-lst : File =
+      step( split-lst = split-lst,
+            cc-lst    = cc-lst );
+
+    let <p = converged : Bool> =
+      has-converged( a = cc-lst,
+                     b = new-cc-lst );
+
+    if
+      converged
+    then
+      cc-lst
+    else
+      run-k-means( split-lst = split-lst,
+                   history   = ( new-cc-lst >> history ) )
     end
-
-
 }
 
-def run-k-means( split-lst : [File], history : File ) -> File {
-
-}
-
-%% Plotting ------------------------------------------------
+%% plotting ------------------------------------------------
 
 def plot-random-sample( cluster-lst : [File] ) -> <png : File>
 in Racket *{
@@ -174,7 +285,7 @@ in Racket *{
 let k-gen  : Str = 4;
 let n-gen  : Str = 10000;
 let k-est  : Str = 4;
-let n-part : Str = 32;
+let n-part : Str = 8;
 
 %%==========================================================
 %% Workflow
@@ -190,10 +301,12 @@ let <split-lst = split-lst : [File]> =
     cluster-lst = cluster-lst,
     n           = n-part );
 
-let <history = history0 : File> =
-  init-history( k = k-est );
+let <cc-lst = cc-lst0 : File> =
+  init-cc-lst( k = k-est );
 
-
+let cc-lst : File =
+  run-k-means( split-lst = split-lst,
+               history   = [cc-lst0 : File] );
 
 let <png = random-sample-png : File> =
   plot-random-sample( cluster-lst = cluster-lst );
@@ -207,4 +320,4 @@ let <png = input-data-png : File> =
 
 <random-sample-png = random-sample-png,
  input-data-png    = input-data-png,
- history0          = history0>;
+ cc-lst            = cc-lst>;
