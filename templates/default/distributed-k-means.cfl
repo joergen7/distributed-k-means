@@ -186,13 +186,6 @@ def step( split-lst : [File], cc-lst : File ) -> File {
   new-cc-lst
 }
 
-def sub1( x : Str ) -> Str {
-  def sub1( x : Str ) -> <y : Str> in Racket *{
-    (define y (number->string (sub1 (string->number x))))
-  }*
-  ( sub1( x = x )|y )
-}
-
 def run-k-means( split-lst : [File], history : [File] ) -> File {
 
     let cc-lst : File =
