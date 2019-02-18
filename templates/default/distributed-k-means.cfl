@@ -186,7 +186,7 @@ def step( split-lst : [File], cc-lst : File ) -> File {
   new-cc-lst
 }
 
-def run-k-means( split-lst : [File], history : [File] ) -> File {
+def run-k-means( split-lst : [File], history : [File] ) -> [File] {
 
     let cc-lst : File =
       first-file( lst     = history,
@@ -203,7 +203,7 @@ def run-k-means( split-lst : [File], history : [File] ) -> File {
     if
       converged
     then
-      cc-lst
+      reverse-file-lst( lst = history )
     else
       run-k-means( split-lst = split-lst,
                    history   = ( new-cc-lst >> history ) )
@@ -268,8 +268,74 @@ in Racket *{
         #:out-file png)
 }*
 
+def plot-history( split-lst : [File], history : [File] ) -> <png : File>
+in Racket *{
+
+  (require (only-in k-means/render
+                    render-history)
+
+           (only-in plot
+                    plot))
+
+  (define (proc f)
+    (call-with-input-file f
+      (lambda (in) (read in))))
+
+  (define point-lst
+    (apply append (map proc split-lst)))
+
+  (define h
+    (map proc history))
+
+  (define png "history.png")
+
+  (plot (render-history point-lst h)
+        #:x-min      0
+        #:x-max     10
+        #:y-min      0
+        #:y-max     10
+        #:width    450
+        #:height   450
+        #:x-label  #f
+        #:y-label  #f
+        #:out-kind 'png
+        #:out-file png)
+}*
 
 
+def plot-partition( split-lst : [File], cc-lst : File ) -> <png : File>
+in Racket *{
+
+  (require (only-in k-means/render
+                    render-partition)
+
+           (only-in plot
+                    plot))
+
+  (define (proc f)
+    (call-with-input-file f
+      (lambda (in) (read in))))
+
+  (define point-lst
+    (apply append (map proc split-lst)))
+
+  (define ccl
+    (proc cc-lst))
+
+  (define png "partition.png")
+
+  (plot (render-partition point-lst ccl)
+        #:x-min      0
+        #:x-max     10
+        #:y-min      0
+        #:y-max     10
+        #:width    450
+        #:height   450
+        #:x-label  #f
+        #:y-label  #f
+        #:out-kind 'png
+        #:out-file png)
+}*
 
 %%==========================================================
 %% Constants
@@ -297,9 +363,13 @@ let <split-lst = split-lst : [File]> =
 let <cc-lst = cc-lst0 : File> =
   init-cc-lst( k = k-est );
 
-let cc-lst : File =
+let history : [File] =
   run-k-means( split-lst = split-lst,
                history   = [cc-lst0 : File] );
+
+let cc-lst : File =
+  first-file( lst     = history,
+              default = error "empty list" : File );
 
 let <png = random-sample-png : File> =
   plot-random-sample( cluster-lst = cluster-lst );
@@ -307,10 +377,20 @@ let <png = random-sample-png : File> =
 let <png = input-data-png : File> =
   plot-input-data( split-lst = split-lst );
 
+let <png = history-png : File> =
+  plot-history( split-lst = split-lst,
+                history   = history );
+
+let <png = partition-png : File> =
+  plot-partition( split-lst = split-lst,
+                  cc-lst    = cc-lst );
+
 %%==========================================================
 %% Query
 %%==========================================================
 
 <random-sample-png = random-sample-png,
  input-data-png    = input-data-png,
+ history-png       = history-png,
+ partition-png     = partition-png,
  cc-lst            = cc-lst>;
